@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Over Studio</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:20px;font-family:Arial,sans-serif;background:linear-gradient(135deg,#10101c,#202746);color:white;min-height:100vh}
+.container{max-width:650px;margin:20px auto;background:#191d30;border:1px solid #d4af37;border-radius:20px;padding:25px;box-shadow:0 10px 35px #0008}
+h1{text-align:center;color:#ffd76a}
+.subtitle{text-align:center;color:#bbb}
+label{display:block;margin:18px 0 8px;font-weight:bold}
+textarea,select{width:100%;padding:13px;border-radius:10px;border:1px solid #444c66;background:#101525;color:white;font-size:16px}
+textarea{height:180px;resize:vertical}
+input[type=range]{width:100%}
+.controls{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+button{flex:1;min-width:100px;padding:13px;border:0;border-radius:10px;cursor:pointer;font-size:15px;font-weight:bold}
+.play{background:#ffd76a;color:#171717}
+.pause{background:#536dfe;color:white}
+.stop{background:#e74c3c;color:white}
+.download{background:#159b72;color:white;margin-top:12px;width:100%}
+#status{text-align:center;color:#ffd76a;margin-top:15px}
+.note{margin-top:20px;padding:12px;background:#101525;border-radius:10px;color:#ccc;font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🎙 Voice Over Studio</h1>
+<p class="subtitle">Create your voice-over for free</p>
+
+<label for="text">Enter Your Text</label>
+<textarea id="text" placeholder="Write your script here..."></textarea>
+
+<label for="language">Select Language</label>
+<select id="language">
+<option value="hi-IN">Hindi</option>
+<option value="bn-IN">Bengali</option>
+<option value="en-IN">English (India)</option>
+<option value="en-US">English (US)</option>
+<option value="ta-IN">Tamil</option>
+<option value="te-IN">Telugu</option>
+<option value="mr-IN">Marathi</option>
+<option value="gu-IN">Gujarati</option>
+<option value="kn-IN">Kannada</option>
+<option value="fr-FR">French</option>
+</select>
+
+<label for="voice">Select Voice</label>
+<select id="voice">
+<option value="">Default Voice</option>
+</select>
+
+<label for="speed">Voice Speed</label>
+<input type="range" id="speed" min="0.5" max="2" value="1" step="0.1">
+
+<label for="pitch">Voice Pitch</label>
+<input type="range" id="pitch" min="0.5" max="2" value="1" step="0.1">
+
+<div class="controls">
+<button class="play" onclick="speakText()">▶ Play</button>
+<button class="pause" onclick="pauseText()">⏸ Pause / Resume</button>
+<button class="stop" onclick="stopText()">■ Stop</button>
+</div>
+
+<button class="download" onclick="downloadText()">Download Script (.txt)</button>
+
+<div id="status">Ready to create your voice-over.</div>
+<div class="note">Voice availability depends on your browser and device. Download Script saves text, not audio.</div>
+</div>
+
+<script>
+const textBox=document.getElementById("text");
+const language=document.getElementById("language");
+const voiceSelect=document.getElementById("voice");
+const statusBox=document.getElementById("status");
+let voices=[];
+
+function loadVoices(){
+if(!("speechSynthesis" in window)){
+statusBox.textContent="Speech synthesis is not supported.";
+return;
+}
+voices=speechSynthesis.getVoices();
+updateVoiceList();
+}
+
+function updateVoiceList(){
+const previous=voiceSelect.value;
+voiceSelect.innerHTML='<option value="">Default Voice</option>';
+voices.filter(v=>v.lang.toLowerCase().startsWith(language.value.split("-")[0].toLowerCase())).forEach(v=>{
+const option=document.createElement("option");
+option.value=v.name;
+option.textContent=v.name+" ("+v.lang+")";
+voiceSelect.appendChild(option);
+});
+if(voices.some(v=>v.name===previous))voiceSelect.value=previous;
+}
+
+if("speechSynthesis" in window){
+loadVoices();
+speechSynthesis.onvoiceschanged=loadVoices;
+}
+
+language.addEventListener("change",updateVoiceList);
+
+function speakText(){
+if(!("speechSynthesis" in window)){
+alert("Please use a supported browser.");
+return;
+}
+const text=textBox.value.trim();
+if(!text){alert("Please enter your script first.");return;}
+
+speechSynthesis.cancel();
+const utterance=new SpeechSynthesisUtterance(text);
+utterance.lang=language.value;
+utterance.rate=Number(document.getElementById("speed").value);
+utterance.pitch=Number(document.getElementById("pitch").value);
+
+const selected=voices.find(v=>v.name===voiceSelect.value);
+if(selected)utterance.voice=selected;
+
+utterance.onstart=()=>statusBox.textContent="Speaking...";
+utterance.onend=()=>statusBox.textContent="Voice-over completed.";
+utterance.onerror=e=>statusBox.textContent="Speech error: "+e.error;
+
+speechSynthesis.speak(utterance);
+}
+
+function pauseText(){
+if(!("speechSynthesis" in window))return;
+if(speechSynthesis.paused){
+speechSynthesis.resume();
+statusBox.textContent="Resuming...";
+}else if(speechSynthesis.speaking){
+speechSynthesis.pause();
+statusBox.textContent="Paused.";
+}
+}
+
+function stopText(){
+if("speechSynthesis" in window)speechSynthesis.cancel();
+statusBox.textContent="Stopped.";
+}
+
+function downloadText(){
+const text=textBox.value.trim();
+if(!text){alert("Please enter your script first.");return;}
+const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+const url=URL.createObjectURL(blob);
+const a=document.createElement("a");
+a.href=url;
+a.download="voice-over-script.txt";
+document.body.appendChild(a);
+a.click();
+a.remove();
+setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+</script>
+</body>
+</html>
